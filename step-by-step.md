@@ -1,6 +1,6 @@
 # Step by step
 
-![Functional code](../img/functional.png)
+![Functional code](img/functional.png)
 
 ## AuditManager
 - Start by deleting `IFileSystem` constructor injection and `_directoryName` from `AuditManager`

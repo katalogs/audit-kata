@@ -347,3 +347,9 @@ CoverageResults/
 # Javascript
 yarn.lock
 **/coverage/
+
+# Java
+
+**/.gradle/*
+**/build/*
+**/target/*

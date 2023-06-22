@@ -50,7 +50,7 @@
 
         private static (int index, string path)[] SortByIndex(string[] filePaths)
             => filePaths
-                .AsEnumerable()
+                .OrderBy(x => x)
                 .Select((path, index) => (index + 1, path))
                 .ToArray();
     }

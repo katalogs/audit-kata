@@ -6,20 +6,24 @@
 - Start by deleting `IFileSystem` constructor injection and `_directoryName` from `AuditManager`
   - Let your `compiler` guide you
 - Change method signature to match what we want to achieve
-  - Generate the 2 new types from your IDE 
+  - Generate the 2 new types from your IDE
 
-```c#
-public FileUpdate AddRecord(
-            FileContent[] files,
-            string visitorName, 
+```diff
+- public void AddRecord(
++ public FileUpdate AddRecord(
+
+            + FileContent[] files,
+            string visitorName,
             DateTime timeOfVisit)
 ```
 
 - Adapt the `SortByIndex` method to return a list of `Tuple<int, FileContent>`
 
-```c#
-private static (int index, FileContent)[] SortByIndex(FileContent[] files)
-    => files
+```diff
+- private static (int index, string path)[] SortByIndex(string[] filePaths)
++ private static (int index, FileContent)[] SortByIndex(FileContent[] files)
+-    => filePaths
++    => files
         .AsEnumerable()
         .Select((content, index) => (index + 1, content))
         .ToArray();
@@ -27,35 +31,39 @@ private static (int index, FileContent)[] SortByIndex(FileContent[] files)
 
 - Create a new file if no files already by instantiating a `FileUpdate` with new record content inside
 
-```c#
+```diff
 public FileUpdate AddRecord(
             FileContent[] files,
-            string visitorName, 
+            string visitorName,
             DateTime timeOfVisit)
 {
-    (int index, FileContent content)[] sorted = SortByIndex(files);
+-   string[] filePaths = _fileSystem.GetFiles(_directoryName);
++   (int index, FileContent content)[] sorted = SortByIndex(files);
     var newRecord = visitorName + ';' + timeOfVisit.ToString("yyyy-MM-dd HH:mm:ss");;
-    
+
     if (sorted.Length == 0)
     {
-        return new FileUpdate("audit_1.txt", newRecord);
+-       string newFile = Path.Combine(_directoryName, "audit_1.txt");
+-       _fileSystem.WriteAllText(newFile, newRecord);
+-       return;
++       return new FileUpdate("audit_1.txt", newRecord);
     }
     ...
 }
 
-public record FileUpdate(string FileName, string NewContent);
++ public record FileUpdate(string FileName, string NewContent);
 ```
 
 - Do the same for the next step -> `Append into existing file` :
 ```c#
  public FileUpdate AddRecord(
     FileContent[] files,
-    string visitorName, 
+    string visitorName,
     DateTime timeOfVisit)
 {
     (int index, FileContent content)[] sorted = SortByIndex(files);
     var newRecord = visitorName + ';' + timeOfVisit.ToString("yyyy-MM-dd HH:mm:ss");;
-    
+
     if (sorted.Length == 0)
     {
         return new FileUpdate("audit_1.txt", newRecord);
@@ -68,7 +76,8 @@ public record FileUpdate(string FileName, string NewContent);
     {
         lines.Add(newRecord);
         string newContent = string.Join(Environment.NewLine, lines);
-        return new FileUpdate(currentFile.FileName, newContent);
+-       _fileSystem.WriteAllText(currentFilePath, newContent);
++       return new FileUpdate(currentFile.FileName, newContent);
     }
     ...
 }
@@ -80,15 +89,15 @@ public record FileContent(string FileName, string[] Lines);
 - Finish with the case where we need to create a new audit file
   - Think about removing everything related to folders
 
-```c#
+```diff
 public FileUpdate AddRecord(
     FileContent[] files,
-    string visitorName, 
+    string visitorName,
     DateTime timeOfVisit)
 {
     (int index, FileContent content)[] sorted = SortByIndex(files);
     var newRecord = visitorName + ';' + timeOfVisit.ToString("yyyy-MM-dd HH:mm:ss");;
-    
+
     if (sorted.Length == 0)
     {
         return new FileUpdate("audit_1.txt", newRecord);
@@ -107,7 +116,8 @@ public FileUpdate AddRecord(
     {
         int newIndex = currentFileIndex + 1;
         string newName = $"audit_{newIndex}.txt";
-        return new FileUpdate(newName, newRecord);
+-       _fileSystem.WriteAllText(newFile, newRecord);
++       return new FileUpdate(newName, newRecord);
     }
 }
 ```
@@ -126,20 +136,20 @@ namespace Audit
 
         public FileUpdate AddRecord(
             FileContent[] files,
-            string visitorName, 
+            string visitorName,
             DateTime timeOfVisit)
         {
             (int index, FileContent content)[] sorted = SortByIndex(files);
             var newRecord = visitorName + ';' + timeOfVisit.ToString("yyyy-MM-dd HH:mm:ss");
-            
+
             if (sorted.Length == 0)
             {
                 return new FileUpdate("audit_1.txt", newRecord);
             }
-        
+
             (int currentFileIndex, FileContent currentFile) = sorted.Last();
             List<string> lines = currentFile.Lines.ToList();
-        
+
             if (lines.Count < _maxEntriesPerFile)
             {
                 lines.Add(newRecord);
@@ -164,7 +174,7 @@ namespace Audit
     public record FileUpdate(string FileName, string NewContent);
 
     public record FileContent(string FileName, string[] Lines);
-} 
+}
 ```
 
 - Let's adapt our tests accordingly
@@ -182,7 +192,7 @@ public void A_new_file_is_created_when_the_current_file_overflows()
 
     // Act
     var fileUpdate = sut.AddRecord(existingFiles, "Alice", DateTime.Parse("2019-04-06T18:00:00"));
-    
+
     // Assert
     fileUpdate.Should()
         .Be(new FileUpdate("audit_3.txt", "Alice;2019-04-06 18:00:00"));
@@ -204,7 +214,7 @@ namespace Audit
 
         public FileUpdate AddRecord(
             FileContent[] files,
-            string visitorName, 
+            string visitorName,
             DateTime timeOfVisit)
         {
             var sorted = SortByIndex(files);
@@ -214,9 +224,9 @@ namespace Audit
             {
                 return CreateFirstFile(newRecord);
             }
-        
+
             (int currentFileIndex, FileContent currentFile) = sorted.Last();
-            
+
             if (currentFile.Lines.Length < _maxEntriesPerFile)
             {
                 return AppendToExistingFile(currentFile, newRecord);
@@ -232,15 +242,15 @@ namespace Audit
             List<string> lines = currentFile.Lines.ToList();
             lines.Add(newRecord);
             string newContent = string.Join(Environment.NewLine, lines);
-            
+
             return new FileUpdate(currentFile.FileName, newContent);
         }
-        
+
         private static FileUpdate CreateANewFile(int currentFileIndex, string newRecord)
         {
             int newIndex = currentFileIndex + 1;
             string newName = $"audit_{newIndex}.txt";
-            
+
             return new FileUpdate(newName, newRecord);
         }
 
@@ -270,7 +280,7 @@ namespace Audit
 
         public FileUpdate AddRecord(
             FileContent[] files,
-            string visitorName, 
+            string visitorName,
             DateTime timeOfVisit)
         {
             var sorted = SortByIndex(files);
@@ -285,12 +295,12 @@ namespace Audit
 
         private static FileUpdate CreateFirstFile(string newRecord)
             => new(FirstFileName, newRecord);
-        
+
         private FileUpdate CreateNewFileOrUpdate((int, FileContent) currentFile, string newRecord)
         {
             var (fileIndex, fileContent) = currentFile;
-            return fileContent.Lines.Length < _maxEntriesPerFile 
-                ? AppendToExistingFile(fileContent, newRecord) 
+            return fileContent.Lines.Length < _maxEntriesPerFile
+                ? AppendToExistingFile(fileContent, newRecord)
                 : CreateANewFile(fileIndex, newRecord);
         }
 
@@ -299,15 +309,15 @@ namespace Audit
             List<string> lines = currentFile.Lines.ToList();
             lines.Add(newRecord);
             string newContent = string.Join(Environment.NewLine, lines);
-            
+
             return new FileUpdate(currentFile.FileName, newContent);
         }
-        
+
         private static FileUpdate CreateANewFile(int currentFileIndex, string newRecord)
         {
             int newIndex = currentFileIndex + 1;
             string newName = $"audit_{newIndex}.txt";
-            
+
             return new FileUpdate(newName, newRecord);
         }
 
@@ -324,7 +334,7 @@ namespace Audit
 ```
 
 - We have lost some features in the battle
-  - Let's implement the `Persister` class 
+  - Let's implement the `Persister` class
 
 ## Persister (Mutable shell) - Optional
 - The `Persister` is responsible for
@@ -362,7 +372,7 @@ public class AddRecordUseCase
     private readonly string _directoryName;
     private readonly AuditManager _auditManager;
     private readonly Persister _persister;
-    
+
     public AddRecordUseCase(string directoryName, int maxEntriesPerFile)
     {
         _directoryName = directoryName;
@@ -373,7 +383,7 @@ public class AddRecordUseCase
     {
         FileContent[] files = _persister.ReadDirectory(_directoryName);
         FileUpdate update = _auditManager.AddRecord(files, visitorName, timeOfVisit);
-        
+
         _persister.ApplyUpdate(_directoryName, update);
     }
 }

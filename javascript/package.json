@@ -1,0 +1,14 @@
+{
+  "name": "audit-kata",
+  "version": "1.0.0",
+  "description": "JavaScript implementation of the Audit kata",
+  "main": "audit.js",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^3.1.3"
+  }
+}
